@@ -5,21 +5,34 @@ import '../../data/models/product.dart';
 class ProductCard extends StatelessWidget {
   final Product product;
   final VoidCallback? onDelete;
+  final VoidCallback? onEdit;
 
-  const ProductCard({Key? key, required this.product, this.onDelete}) : super(key: key);
+  const ProductCard(
+      {Key? key, required this.product, this.onDelete, this.onEdit})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
         leading: product.imagePath != null
-          ? Image.file(File(product.imagePath!), width: 50, height: 50, fit: BoxFit.cover)
-          : Icon(Icons.inventory),
+            ? Image.file(File(product.imagePath!),
+                width: 50, height: 50, fit: BoxFit.cover)
+            : Icon(Icons.inventory),
         title: Text(product.name),
         subtitle: Text("\$${product.price.toStringAsFixed(2)}"),
-        trailing: IconButton(
-          icon: Icon(Icons.delete, color: Colors.red),
-          onPressed: onDelete,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit, color: Colors.blue),
+              onPressed: onEdit,
+            ),
+            IconButton(
+              icon: Icon(Icons.delete, color: Colors.red),
+              onPressed: onDelete,
+            ),
+          ],
         ),
       ),
     );

@@ -22,4 +22,15 @@ class ProductRepository {
       whereArgs: [id],
     );
   }
+
+    static Future<int> updateProduct(Product product) async {
+    final db = await DBHelper.initDB();
+    return await db.update(
+      'products',
+      product.toMap(),
+      where: 'id = ?',
+      whereArgs: [product.id],
+    );
+  }
+
 }
