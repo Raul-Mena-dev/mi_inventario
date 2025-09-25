@@ -1,4 +1,3 @@
-import 'package:sqflite/sqflite.dart';
 import '../models/product.dart';
 import '../database/db_helper.dart';
 
@@ -24,13 +23,20 @@ class ProductRepository {
   }
 
     static Future<int> updateProduct(Product product) async {
+      final db = await DBHelper.initDB();
+      return await db.update(
+        'products',
+        product.toMap(),
+        where: 'id = ?',
+        whereArgs: [product.id],
+      );
+    }
+
+  static Future<List<String>> getCategories() async {
     final db = await DBHelper.initDB();
-    return await db.update(
-      'products',
-      product.toMap(),
-      where: 'id = ?',
-      whereArgs: [product.id],
-    );
+    final result = await db.rawQuery('SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != ""');
+    return result.map((row) => row['category'] as String).toList();
   }
+
 
 }

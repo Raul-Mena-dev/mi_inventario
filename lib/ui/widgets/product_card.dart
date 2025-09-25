@@ -8,8 +8,7 @@ class ProductCard extends StatelessWidget {
   final VoidCallback? onEdit;
 
   const ProductCard(
-      {Key? key, required this.product, this.onDelete, this.onEdit})
-      : super(key: key);
+      {super.key, required this.product, this.onDelete, this.onEdit});
 
   @override
   Widget build(BuildContext context) {

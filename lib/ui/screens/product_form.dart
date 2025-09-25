@@ -7,7 +7,7 @@ import 'dart:io';
 class ProductForm extends StatefulWidget {
   final Product? product; // 👈 opcional para edición
 
-  const ProductForm({Key? key, this.product}) : super(key: key);
+  const ProductForm({super.key, this.product});
 
   @override
   ProductFormState createState() => ProductFormState();
@@ -21,19 +21,32 @@ class ProductFormState extends State<ProductForm> {
   late TextEditingController _categoryController;
 
   File? _image;
+  List<String> _categories = []; // 👈 guardamos categorías existentes
 
   @override
   void initState() {
     super.initState();
-    // Inicializar controladores con valores si es edición
     _nameController = TextEditingController(text: widget.product?.name ?? "");
-    _descriptionController = TextEditingController(text: widget.product?.description ?? "");
-    _priceController = TextEditingController(text: widget.product?.price.toString() ?? "");
-    _categoryController = TextEditingController(text: widget.product?.category ?? "");
+    _descriptionController =
+        TextEditingController(text: widget.product?.description ?? "");
+    _priceController =
+        TextEditingController(text: widget.product?.price.toString() ?? "");
+    _categoryController =
+        TextEditingController(text: widget.product?.category ?? "");
 
     if (widget.product?.imagePath != null) {
       _image = File(widget.product!.imagePath!);
     }
+
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    final categories = await ProductRepository
+        .getCategories(); // debes implementar este método
+    setState(() {
+      _categories = categories;
+    });
   }
 
   Future<void> _pickImage() async {
@@ -48,7 +61,8 @@ class ProductFormState extends State<ProductForm> {
                 title: const Text("Tomar foto"),
                 onTap: () async {
                   Navigator.of(ctx).pop();
-                  final pickedFile = await ImagePicker().pickImage(source: ImageSource.camera);
+                  final pickedFile =
+                      await ImagePicker().pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
                     setState(() {
                       _image = File(pickedFile.path);
@@ -61,7 +75,8 @@ class ProductFormState extends State<ProductForm> {
                 title: const Text("Elegir de galería"),
                 onTap: () async {
                   Navigator.of(ctx).pop();
-                  final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+                  final pickedFile = await ImagePicker()
+                      .pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
                     setState(() {
                       _image = File(pickedFile.path);
@@ -80,7 +95,7 @@ class ProductFormState extends State<ProductForm> {
     if (!_formKey.currentState!.validate()) return;
 
     final product = Product(
-      id: widget.product?.id, // 👈 importante para update
+      id: widget.product?.id,
       name: _nameController.text,
       description: _descriptionController.text,
       price: double.tryParse(_priceController.text) ?? 0,
@@ -89,10 +104,8 @@ class ProductFormState extends State<ProductForm> {
     );
 
     if (widget.product == null) {
-      // Crear
       await ProductRepository.insertProduct(product);
     } else {
-      // Editar
       await ProductRepository.updateProduct(product);
     }
 
@@ -104,7 +117,8 @@ class ProductFormState extends State<ProductForm> {
     final isEditing = widget.product != null;
 
     return Scaffold(
-      appBar: AppBar(title: Text(isEditing ? "Editar Producto" : "Nuevo Producto")),
+      appBar:
+          AppBar(title: Text(isEditing ? "Editar Producto" : "Nuevo Producto")),
       resizeToAvoidBottomInset: true,
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -114,7 +128,7 @@ class ProductFormState extends State<ProductForm> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Imagen del producto
+                // Imagen
                 Container(
                   height: 120,
                   color: Colors.grey[200],
@@ -127,40 +141,80 @@ class ProductFormState extends State<ProductForm> {
                 ElevatedButton.icon(
                   onPressed: _pickImage,
                   icon: const Icon(Icons.add_a_photo),
-                  label: Text(isEditing ? "Cambiar Foto" : "Seleccionar Imagen"),
+                  label:
+                      Text(isEditing ? "Cambiar Foto" : "Seleccionar Imagen"),
                 ),
                 const SizedBox(height: 10),
 
+                // Nombre
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(labelText: "Nombre"),
-                  validator: (val) => val == null || val.isEmpty ? "Requerido" : null,
+                  validator: (val) =>
+                      val == null || val.isEmpty ? "Requerido" : null,
                 ),
                 const SizedBox(height: 10),
 
+                // Descripción
                 TextFormField(
                   controller: _descriptionController,
                   decoration: const InputDecoration(labelText: "Descripción"),
                 ),
                 const SizedBox(height: 10),
 
+                // Precio
                 TextFormField(
                   controller: _priceController,
                   decoration: const InputDecoration(labelText: "Precio"),
                   keyboardType: TextInputType.number,
-                  validator: (val) => val == null || val.isEmpty ? "Requerido" : null,
+                  validator: (val) =>
+                      val == null || val.isEmpty ? "Requerido" : null,
                 ),
                 const SizedBox(height: 10),
 
-                TextFormField(
-                  controller: _categoryController,
-                  decoration: const InputDecoration(labelText: "Categoría"),
+                // Categoría con Autocomplete 🚀
+                Autocomplete<String>(
+                  optionsBuilder: (TextEditingValue textEditingValue) {
+                    if (textEditingValue.text.isEmpty) {
+                      return const Iterable<String>.empty();
+                    }
+                    return _categories.where((c) => c
+                        .toLowerCase()
+                        .contains(textEditingValue.text.toLowerCase()));
+                  },
+                  onSelected: (String selection) {
+                    _categoryController.text =
+                        selection; // actualiza el valor del formulario
+                  },
+                  fieldViewBuilder: (BuildContext context,
+                      TextEditingController textEditingController,
+                      FocusNode focusNode,
+                      VoidCallback onFieldSubmitted) {
+                    // Inicializa el controlador solo la primera vez
+                    if (textEditingController.text.isEmpty &&
+                        _categoryController.text.isNotEmpty) {
+                      textEditingController.text = _categoryController.text;
+                    }
+
+                    // Cada vez que escribes, actualiza _categoryController
+                    textEditingController.addListener(() {
+                      _categoryController.text = textEditingController.text;
+                    });
+
+                    return TextFormField(
+                      controller: textEditingController,
+                      focusNode: focusNode,
+                      decoration: const InputDecoration(labelText: "Categoría"),
+                      onEditingComplete: onFieldSubmitted,
+                    );
+                  },
                 ),
+
                 const SizedBox(height: 20),
 
                 ElevatedButton(
-                  child: Text(isEditing ? "Actualizar" : "Guardar"),
                   onPressed: _save,
+                  child: Text(isEditing ? "Actualizar" : "Guardar"),
                 ),
               ],
             ),
