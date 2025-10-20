@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import '../../data/models/product.dart';
 import '../../data/repositories/product_repository.dart';
 import 'product_form.dart';
-import '../../services/pdf_service.dart';
 import '../../services/settings_service.dart';
+import 'export_options_sheet.dart';
+
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -55,7 +56,8 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text("Nombre del negocio"),
         content: TextField(
           controller: controller,
-          decoration: InputDecoration(hintText: "Escribe el nombre de tu negocio"),
+          decoration:
+              InputDecoration(hintText: "Escribe el nombre de tu negocio"),
         ),
         actions: [
           TextButton(
@@ -100,7 +102,14 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: Icon(Icons.picture_as_pdf),
             onPressed: () async {
-              await PDFService.generateCatalog(filteredProducts, businessName);
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                builder: (context) => ExportOptionsSheet(
+                  products: products,
+                  businessName: businessName,
+                ),
+              );
             },
           ),
         ],
@@ -138,14 +147,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       final items = entry.value;
 
                       return ExpansionTile(
-                        key: PageStorageKey(category), // mantener estado abierto
+                        key:
+                            PageStorageKey(category), // mantener estado abierto
                         title: Text(
                           category,
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 18),
                         ),
                         children: items.map((product) {
                           return ExpansionTile(
-                            key: PageStorageKey(product.id), // mantener estado abierto
+                            key: PageStorageKey(
+                                product.id), // mantener estado abierto
                             leading: product.imagePath != null &&
                                     File(product.imagePath!).existsSync()
                                 ? Image.file(
@@ -155,7 +167,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     fit: BoxFit.cover,
                                   )
                                 : Icon(Icons.inventory, size: 40),
-                            title: Text(product.name, style: TextStyle(fontWeight: FontWeight.bold)),
+                            title: Text(product.name,
+                                style: TextStyle(fontWeight: FontWeight.bold)),
                             subtitle: Text("Categoría: ${product.category}"),
                             children: [
                               ListTile(
@@ -166,9 +179,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               ListTile(
                                 title: Text("Precio"),
-                                subtitle: Text("\$${product.price.toStringAsFixed(2)}"),
+                                subtitle: Text(
+                                    "\$${product.price.toStringAsFixed(2)}"),
                               ),
-                              if (product.imagePath != null && File(product.imagePath!).existsSync())
+                              if (product.imagePath != null &&
+                                  File(product.imagePath!).existsSync())
                                 Padding(
                                   padding: const EdgeInsets.all(8.0),
                                   child: Image.file(
@@ -180,15 +195,18 @@ class _HomeScreenState extends State<HomeScreen> {
                               OverflowBar(
                                 children: [
                                   TextButton(
-                                    onPressed: () => _confirmDelete(product.id!),
-                                    child: Text("Eliminar", style: TextStyle(color: Colors.red)),
+                                    onPressed: () =>
+                                        _confirmDelete(product.id!),
+                                    child: Text("Eliminar",
+                                        style: TextStyle(color: Colors.red)),
                                   ),
                                   TextButton(
                                     onPressed: () async {
                                       await Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (_) => ProductForm(product: product),
+                                          builder: (_) =>
+                                              ProductForm(product: product),
                                         ),
                                       );
                                       loadProducts();

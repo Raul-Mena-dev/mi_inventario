@@ -4,6 +4,7 @@ class Product {
   final String description;
   final double price;
   final String category;
+  final String subcategory;
   final String? imagePath; // NUEVO
 
   Product({
@@ -12,6 +13,7 @@ class Product {
     required this.description,
     required this.price,
     required this.category,
+    required this.subcategory,
     this.imagePath,
   });
 
@@ -22,6 +24,7 @@ class Product {
       'description': description,
       'price': price,
       'category': category,
+      'subcategory': subcategory,
       'imagePath': imagePath,
     };
   }
@@ -33,6 +36,7 @@ class Product {
       description: map['description'],
       price: map['price'],
       category: map['category'],
+      subcategory: map['subcategory'],
       imagePath: map['imagePath'],
     );
   }

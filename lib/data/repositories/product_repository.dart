@@ -38,5 +38,15 @@ class ProductRepository {
     return result.map((row) => row['category'] as String).toList();
   }
 
+  // Obtener subcategorías únicas para una categoría específica
+static Future<List<String>> getSubcategories(String category) async {
+  final db = await DBHelper.initDB();
+  final res = await db.rawQuery(
+    "SELECT DISTINCT subcategory FROM products WHERE category = ? AND subcategory IS NOT NULL AND subcategory != ''",
+    [category],
+  );
+  return res.map((r) => r['subcategory'] as String).toList();
+}
+
 
 }

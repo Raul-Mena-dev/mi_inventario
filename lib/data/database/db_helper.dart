@@ -15,6 +15,7 @@ class DBHelper {
             description TEXT,
             price REAL,
             category TEXT,
+            subcategory TEXT,
             imagePath TEXT
           )
         ''');

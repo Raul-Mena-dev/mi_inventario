@@ -5,7 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
 class ProductForm extends StatefulWidget {
-  final Product? product; // 👈 opcional para edición
+  final Product? product;
 
   const ProductForm({super.key, this.product});
 
@@ -19,9 +19,11 @@ class ProductFormState extends State<ProductForm> {
   late TextEditingController _descriptionController;
   late TextEditingController _priceController;
   late TextEditingController _categoryController;
+  late TextEditingController _subcategoryController;
 
   File? _image;
-  List<String> _categories = []; // 👈 guardamos categorías existentes
+  List<String> _categories = [];
+  List<String> _subcategories = [];
 
   @override
   void initState() {
@@ -33,19 +35,30 @@ class ProductFormState extends State<ProductForm> {
         TextEditingController(text: widget.product?.price.toString() ?? "");
     _categoryController =
         TextEditingController(text: widget.product?.category ?? "");
+    _subcategoryController =
+        TextEditingController(text: widget.product?.subcategory ?? "");
 
     if (widget.product?.imagePath != null) {
       _image = File(widget.product!.imagePath!);
     }
 
     _loadCategories();
+    if (_categoryController.text.isNotEmpty) {
+      _loadSubcategories(_categoryController.text);
+    }
   }
 
   Future<void> _loadCategories() async {
-    final categories = await ProductRepository
-        .getCategories(); // debes implementar este método
+    final categories = await ProductRepository.getCategories();
     setState(() {
       _categories = categories;
+    });
+  }
+
+  Future<void> _loadSubcategories(String category) async {
+    final subs = await ProductRepository.getSubcategories(category);
+    setState(() {
+      _subcategories = subs;
     });
   }
 
@@ -100,6 +113,7 @@ class ProductFormState extends State<ProductForm> {
       description: _descriptionController.text,
       price: double.tryParse(_priceController.text) ?? 0,
       category: _categoryController.text,
+      subcategory: _subcategoryController.text,
       imagePath: _image?.path,
     );
 
@@ -182,21 +196,19 @@ class ProductFormState extends State<ProductForm> {
                         .toLowerCase()
                         .contains(textEditingValue.text.toLowerCase()));
                   },
-                  onSelected: (String selection) {
-                    _categoryController.text =
-                        selection; // actualiza el valor del formulario
+                  onSelected: (String selection) async {
+                    _categoryController.text = selection;
+                    _subcategoryController.clear();
+                    await _loadSubcategories(selection);
                   },
                   fieldViewBuilder: (BuildContext context,
                       TextEditingController textEditingController,
                       FocusNode focusNode,
                       VoidCallback onFieldSubmitted) {
-                    // Inicializa el controlador solo la primera vez
                     if (textEditingController.text.isEmpty &&
                         _categoryController.text.isNotEmpty) {
                       textEditingController.text = _categoryController.text;
                     }
-
-                    // Cada vez que escribes, actualiza _categoryController
                     textEditingController.addListener(() {
                       _categoryController.text = textEditingController.text;
                     });
@@ -205,6 +217,43 @@ class ProductFormState extends State<ProductForm> {
                       controller: textEditingController,
                       focusNode: focusNode,
                       decoration: const InputDecoration(labelText: "Categoría"),
+                      onEditingComplete: onFieldSubmitted,
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 10),
+
+                // Subcategoría con Autocomplete dependiente
+                Autocomplete<String>(
+                  optionsBuilder: (TextEditingValue textEditingValue) {
+                    if (textEditingValue.text.isEmpty) {
+                      return const Iterable<String>.empty();
+                    }
+                    return _subcategories.where((s) => s
+                        .toLowerCase()
+                        .contains(textEditingValue.text.toLowerCase()));
+                  },
+                  onSelected: (String selection) {
+                    _subcategoryController.text = selection;
+                  },
+                  fieldViewBuilder: (BuildContext context,
+                      TextEditingController textEditingController,
+                      FocusNode focusNode,
+                      VoidCallback onFieldSubmitted) {
+                    if (textEditingController.text.isEmpty &&
+                        _subcategoryController.text.isNotEmpty) {
+                      textEditingController.text = _subcategoryController.text;
+                    }
+                    textEditingController.addListener(() {
+                      _subcategoryController.text = textEditingController.text;
+                    });
+
+                    return TextFormField(
+                      controller: textEditingController,
+                      focusNode: focusNode,
+                      decoration:
+                          const InputDecoration(labelText: "Subcategoría"),
                       onEditingComplete: onFieldSubmitted,
                     );
                   },
