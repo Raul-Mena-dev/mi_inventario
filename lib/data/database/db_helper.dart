@@ -19,7 +19,17 @@ class DBHelper {
             imagePath TEXT
           )
         ''');
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS tickets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT,
+            total REAL,
+            pdfPath TEXT
+          )
+        ''');
+
       },
+      
     );
   }
 }
