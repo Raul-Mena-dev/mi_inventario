@@ -4,12 +4,12 @@ import 'package:pdf/pdf.dart';
 import 'package:path_provider/path_provider.dart';
 import '../data/models/product.dart';
 import 'package:open_file/open_file.dart';
+import 'settings_service.dart'; // 👈 para leer los datos guardados
 
 class PdfService {
-  /// Genera un catálogo en PDF, filtrando opcionalmente por categoría o subcategoría
+  /// Genera un catálogo en PDF, mostrando datos del negocio y redes sociales en texto
   static Future<void> generateProductPdf({
     required List<Product> products,
-    required String businessName,
   }) async {
     final pdf = pw.Document();
 
@@ -17,6 +17,12 @@ class PdfService {
       print("⚠️ No hay productos para exportar.");
       return;
     }
+
+    // 🔹 Obtener datos del negocio
+    final businessName = await SettingsService.getBusinessName() ?? 'Mi Negocio';
+    final logoPath = await SettingsService.getLogoPath();
+    final socialLinks = await SettingsService.getSocialLinks(); 
+    // socialLinks podría ser algo como: {'facebook': 'MiNegocioFB', 'instagram': '@minegocio', 'whatsapp': '3312345678'}
 
     // 🔹 Agrupar productos por categoría y subcategoría
     final Map<String, Map<String?, List<Product>>> grouped = {};
@@ -37,7 +43,18 @@ class PdfService {
         margin: const pw.EdgeInsets.all(24),
         build: (context) {
           return [
-            // Título principal
+            // 🔹 Encabezado del catálogo
+            if (logoPath != null && File(logoPath).existsSync())
+              pw.Center(
+                child: pw.Container(
+                  width: 100,
+                  height: 100,
+                  child: pw.Image(
+                    pw.MemoryImage(File(logoPath).readAsBytesSync()),
+                    fit: pw.BoxFit.contain,
+                  ),
+                ),
+              ),
             pw.Center(
               child: pw.Text(
                 businessName,
@@ -48,9 +65,16 @@ class PdfService {
                 ),
               ),
             ),
+            pw.SizedBox(height: 10),
+            pw.Center(
+              child: pw.Text(
+                "Catálogo de productos",
+                style: pw.TextStyle(fontSize: 14, color: PdfColors.grey700),
+              ),
+            ),
             pw.SizedBox(height: 20),
 
-            // 🔹 Recorrer categorías
+            // 🔹 Contenido principal (productos agrupados)
             for (var catEntry in grouped.entries) ...[
               pw.Header(
                 level: 1,
@@ -61,8 +85,6 @@ class PdfService {
                   ),
                 ),
               ),
-
-              // 🔹 Recorrer subcategorías
               for (var subEntry in catEntry.value.entries) ...[
                 if (subEntry.key != null)
                   pw.Padding(
@@ -76,8 +98,6 @@ class PdfService {
                       ),
                     ),
                   ),
-
-                // 🔹 Productos dentro de esa subcategoría
                 for (var product in subEntry.value)
                   pw.Container(
                     margin: const pw.EdgeInsets.symmetric(vertical: 6),
@@ -121,6 +141,34 @@ class PdfService {
                 pw.Divider(),
               ],
             ],
+
+            pw.SizedBox(height: 20),
+
+            // 🔹 Pie con redes sociales
+            if (socialLinks != null && socialLinks.isNotEmpty) ...[
+              pw.Divider(),
+              pw.Center(
+                child: pw.Text(
+                  "Síguenos en nuestras redes sociales",
+                  style: pw.TextStyle(
+                    fontSize: 12,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.grey700,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 6),
+              pw.Center(
+                child: pw.Column(
+                  children: socialLinks.entries
+                      .map((e) => pw.Text(
+                            "${_capitalize(e.key)}: ${e.value}",
+                            style: pw.TextStyle(fontSize: 11),
+                          ))
+                      .toList(),
+                ),
+              ),
+            ],
           ];
         },
       ),
@@ -137,5 +185,10 @@ class PdfService {
 
     // 🔹 Abrir el archivo
     await OpenFile.open(file.path);
+  }
+
+  static String _capitalize(String text) {
+    if (text.isEmpty) return text;
+    return text[0].toUpperCase() + text.substring(1).toLowerCase();
   }
 }

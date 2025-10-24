@@ -109,11 +109,11 @@ class ProductFormState extends State<ProductForm> {
 
     final product = Product(
       id: widget.product?.id,
-      name: _nameController.text,
-      description: _descriptionController.text,
+      name: _nameController.text.trim(),
+      description: _descriptionController.text.trim(),
       price: double.tryParse(_priceController.text) ?? 0,
-      category: _categoryController.text,
-      subcategory: _subcategoryController.text,
+      category: _categoryController.text.trim(),
+      subcategory: _subcategoryController.text.trim(),
       imagePath: _image?.path,
     );
 
@@ -131,145 +131,171 @@ class ProductFormState extends State<ProductForm> {
     final isEditing = widget.product != null;
 
     return Scaffold(
-      appBar:
-          AppBar(title: Text(isEditing ? "Editar Producto" : "Nuevo Producto")),
       resizeToAvoidBottomInset: true,
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: Text(isEditing ? "Editar Producto" : "Nuevo Producto"),
+      ),
+      body: SafeArea(
         child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Imagen
-                Container(
-                  height: 120,
-                  color: Colors.grey[200],
-                  child: _image != null
-                      ? Image.file(_image!, fit: BoxFit.cover)
-                      : const Center(child: Text("No hay imagen")),
+                // Imagen principal
+                GestureDetector(
+                  onTap: _pickImage,
+                  child: Card(
+                    elevation: 3,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    child: Container(
+                      height: 160,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.grey[100],
+                        image: _image != null
+                            ? DecorationImage(
+                                image: FileImage(_image!),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      child: _image == null
+                          ? const Center(
+                              child: Icon(
+                                Icons.add_a_photo,
+                                size: 40,
+                                color: Colors.grey,
+                              ),
+                            )
+                          : null,
+                    ),
+                  ),
                 ),
+                const SizedBox(height: 16),
+
+                // Campos
+                _buildTextField(_nameController, "Nombre", required: true),
+                _buildTextField(_descriptionController, "Descripción",
+                    maxLines: 2),
+                _buildTextField(_priceController, "Precio",
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    required: true),
+
                 const SizedBox(height: 10),
 
-                ElevatedButton.icon(
-                  onPressed: _pickImage,
-                  icon: const Icon(Icons.add_a_photo),
-                  label:
-                      Text(isEditing ? "Cambiar Foto" : "Seleccionar Imagen"),
-                ),
-                const SizedBox(height: 10),
-
-                // Nombre
-                TextFormField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(labelText: "Nombre"),
-                  validator: (val) =>
-                      val == null || val.isEmpty ? "Requerido" : null,
-                ),
-                const SizedBox(height: 10),
-
-                // Descripción
-                TextFormField(
-                  controller: _descriptionController,
-                  decoration: const InputDecoration(labelText: "Descripción"),
-                ),
-                const SizedBox(height: 10),
-
-                // Precio
-                TextFormField(
-                  controller: _priceController,
-                  decoration: const InputDecoration(labelText: "Precio"),
-                  keyboardType: TextInputType.number,
-                  validator: (val) =>
-                      val == null || val.isEmpty ? "Requerido" : null,
-                ),
-                const SizedBox(height: 10),
-
-                // Categoría con Autocomplete 🚀
-                Autocomplete<String>(
-                  optionsBuilder: (TextEditingValue textEditingValue) {
-                    if (textEditingValue.text.isEmpty) {
-                      return const Iterable<String>.empty();
-                    }
-                    return _categories.where((c) => c
-                        .toLowerCase()
-                        .contains(textEditingValue.text.toLowerCase()));
-                  },
-                  onSelected: (String selection) async {
+                // Categoría con Autocomplete
+                _buildAutocompleteField(
+                  label: "Categoría",
+                  controller: _categoryController,
+                  options: _categories,
+                  onSelected: (selection) async {
                     _categoryController.text = selection;
                     _subcategoryController.clear();
                     await _loadSubcategories(selection);
                   },
-                  fieldViewBuilder: (BuildContext context,
-                      TextEditingController textEditingController,
-                      FocusNode focusNode,
-                      VoidCallback onFieldSubmitted) {
-                    if (textEditingController.text.isEmpty &&
-                        _categoryController.text.isNotEmpty) {
-                      textEditingController.text = _categoryController.text;
-                    }
-                    textEditingController.addListener(() {
-                      _categoryController.text = textEditingController.text;
-                    });
-
-                    return TextFormField(
-                      controller: textEditingController,
-                      focusNode: focusNode,
-                      decoration: const InputDecoration(labelText: "Categoría"),
-                      onEditingComplete: onFieldSubmitted,
-                    );
-                  },
                 ),
 
                 const SizedBox(height: 10),
 
-                // Subcategoría con Autocomplete dependiente
-                Autocomplete<String>(
-                  optionsBuilder: (TextEditingValue textEditingValue) {
-                    if (textEditingValue.text.isEmpty) {
-                      return const Iterable<String>.empty();
-                    }
-                    return _subcategories.where((s) => s
-                        .toLowerCase()
-                        .contains(textEditingValue.text.toLowerCase()));
-                  },
-                  onSelected: (String selection) {
+                // Subcategoría dependiente
+                _buildAutocompleteField(
+                  label: "Subcategoría",
+                  controller: _subcategoryController,
+                  options: _subcategories,
+                  onSelected: (selection) {
                     _subcategoryController.text = selection;
-                  },
-                  fieldViewBuilder: (BuildContext context,
-                      TextEditingController textEditingController,
-                      FocusNode focusNode,
-                      VoidCallback onFieldSubmitted) {
-                    if (textEditingController.text.isEmpty &&
-                        _subcategoryController.text.isNotEmpty) {
-                      textEditingController.text = _subcategoryController.text;
-                    }
-                    textEditingController.addListener(() {
-                      _subcategoryController.text = textEditingController.text;
-                    });
-
-                    return TextFormField(
-                      controller: textEditingController,
-                      focusNode: focusNode,
-                      decoration:
-                          const InputDecoration(labelText: "Subcategoría"),
-                      onEditingComplete: onFieldSubmitted,
-                    );
                   },
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
 
-                ElevatedButton(
+                ElevatedButton.icon(
                   onPressed: _save,
-                  child: Text(isEditing ? "Actualizar" : "Guardar"),
+                  icon: const Icon(Icons.save),
+                  label: Text(isEditing ? "Actualizar" : "Guardar"),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    textStyle: const TextStyle(fontSize: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
                 ),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label, {
+    bool required = false,
+    TextInputType keyboardType = TextInputType.text,
+    int maxLines = 1,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextFormField(
+        controller: controller,
+        maxLines: maxLines,
+        keyboardType: keyboardType,
+        validator: required
+            ? (val) => val == null || val.trim().isEmpty ? "Requerido" : null
+            : null,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          filled: true,
+          fillColor: Colors.grey[50],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAutocompleteField({
+    required String label,
+    required TextEditingController controller,
+    required List<String> options,
+    required ValueChanged<String> onSelected,
+  }) {
+    return Autocomplete<String>(
+      optionsBuilder: (TextEditingValue textEditingValue) {
+        if (textEditingValue.text.isEmpty) {
+          return const Iterable<String>.empty();
+        }
+        return options.where((o) => o
+            .toLowerCase()
+            .contains(textEditingValue.text.toLowerCase()));
+      },
+      onSelected: onSelected,
+      fieldViewBuilder:
+          (context, textEditingController, focusNode, onFieldSubmitted) {
+        if (textEditingController.text.isEmpty &&
+            controller.text.isNotEmpty) {
+          textEditingController.text = controller.text;
+        }
+        textEditingController.addListener(() {
+          controller.text = textEditingController.text;
+        });
+        return TextFormField(
+          controller: textEditingController,
+          focusNode: focusNode,
+          decoration: InputDecoration(
+            labelText: label,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            filled: true,
+            fillColor: Colors.grey[50],
+          ),
+        );
+      },
     );
   }
 }

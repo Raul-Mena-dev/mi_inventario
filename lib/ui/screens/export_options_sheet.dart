@@ -4,12 +4,9 @@ import '../../services/pdf_service.dart';
 
 class ExportOptionsSheet extends StatefulWidget {
   final List<Product> products;
-  final String businessName;
-
   const ExportOptionsSheet({
-    Key? key,
+  Key? key,
     required this.products,
-    required this.businessName,
   }) : super(key: key);
 
   @override
@@ -139,7 +136,7 @@ class _ExportOptionsSheetState extends State<ExportOptionsSheet> {
 
     await PdfService.generateProductPdf(
       products: filteredProducts,
-      businessName: widget.businessName,
     );
+
   }
 }
