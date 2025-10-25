@@ -49,9 +49,18 @@
 	<string>Esta app necesita acceder a la cámara para tomar fotos de productos.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Necesitamos acceder a tu galería para seleccionar fotos del producto.</string>
-
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Necesitamos guardar fotos en tu galería.</string>
 
+	<!-- Configuración de Google Mobile Ads -->
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-3940256099942544~3347511713</string> <!-- ID de PRUEBA -->
+
+	<!-- Permitir conexiones para anuncios -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

@@ -10,6 +10,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  
+  # Anuncios de Google Mobile Ads
+  google_mobile_ads: ^5.1.0
+
+  connectivity_plus: ^6.1.0
 
   open_file: ^3.2.1
   # Base de datos SQLite

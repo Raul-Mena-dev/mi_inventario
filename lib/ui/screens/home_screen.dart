@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../data/models/product.dart';
 import '../../data/repositories/product_repository.dart';
 import 'product_form.dart';
@@ -8,7 +10,6 @@ import '../../services/settings_service.dart';
 import 'export_options_sheet.dart';
 import 'ticket_history_screen.dart';
 import 'settings_screen.dart';
-import 'image_viewer_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -21,12 +22,47 @@ class _HomeScreenState extends State<HomeScreen> {
   String? logoPath;
   String? selectedCategory;
   List<String> categories = [];
+  BannerAd? _bannerAd;
+  bool _isOnline = true;
 
   @override
   void initState() {
     super.initState();
+    _checkInternetAndInitAd();
     _loadProducts();
     _loadSettings();
+  }
+
+  /// 🔌 Verifica conexión a internet antes de mostrar anuncios
+  Future<void> _checkInternetAndInitAd() async {
+    final result = await Connectivity().checkConnectivity();
+    if (result == ConnectivityResult.none) {
+      setState(() => _isOnline = false);
+    } else {
+      setState(() => _isOnline = true);
+      _initBannerAd();
+    }
+  }
+
+  void _initBannerAd() {
+    _bannerAd = BannerAd(
+      adUnitId: 'ca-app-pub-3940256099942544/6300978111', // ID de prueba
+      request: const AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        onAdLoaded: (ad) => setState(() {}),
+        onAdFailedToLoad: (ad, error) {
+          debugPrint('❌ Error al cargar banner: $error');
+          ad.dispose();
+        },
+      ),
+    )..load();
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    super.dispose();
   }
 
   Future<void> _loadProducts() async {
@@ -70,6 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Scaffold(
         backgroundColor: Colors.transparent,
+
         appBar: AppBar(
           backgroundColor: Colors.white.withOpacity(0.9),
           elevation: 4,
@@ -122,9 +159,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   context: context,
                   isScrollControlled: true,
                   backgroundColor: Colors.white,
-                  builder: (context) => ExportOptionsSheet(
-                    products: products,
-                  ),
+                  builder: (context) => ExportOptionsSheet(products: products),
                 );
               },
             ),
@@ -139,7 +174,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 } else if (value == 'historial') {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const TicketHistoryScreen()),
+                    MaterialPageRoute(
+                        builder: (_) => const TicketHistoryScreen()),
                   );
                 }
               },
@@ -171,7 +207,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
         body: Column(
           children: [
-            // Filtro
+            // Filtro de categorías
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               child: DecoratedBox(
@@ -180,7 +216,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: const [
                     BoxShadow(
-                        color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
+                      color: Colors.black12,
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
                   ],
                 ),
                 child: Padding(
@@ -205,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // Lista
+            // Lista de productos
             Expanded(
               child: productsByCategory.isEmpty
                   ? const Center(
@@ -236,34 +275,23 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             children: items.map((product) {
                               return ListTile(
-                                leading: product.imagePath != null && File(product.imagePath!).existsSync()
-                                  ? GestureDetector(
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => ImageViewerScreen(imagePath: product.imagePath!),
-                                          ),
-                                        );
-                                      },
-                                      child: Hero(
-                                        tag: product.imagePath!,
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(8),
-                                          child: Image.file(
-                                            File(product.imagePath!),
-                                            width: 50,
-                                            height: 50,
-                                            fit: BoxFit.cover,
-                                          ),
+                                leading: product.imagePath != null &&
+                                        File(product.imagePath!).existsSync()
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Image.file(
+                                          File(product.imagePath!),
+                                          width: 50,
+                                          height: 50,
+                                          fit: BoxFit.cover,
                                         ),
-                                      ),
-                                    )
-                                  : const Icon(Icons.inventory, size: 40),
-
-                                title: Text(product.name,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold)),
+                                      )
+                                    : const Icon(Icons.inventory, size: 40),
+                                title: Text(
+                                  product.name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
+                                ),
                                 subtitle: Text(
                                     "Precio: \$${product.price.toStringAsFixed(2)}"),
                                 trailing: IconButton(
@@ -273,9 +301,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     await Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) =>
-                                            ProductForm(product: product),
-                                      ),
+                                          builder: (_) =>
+                                              ProductForm(product: product)),
                                     );
                                     _loadProducts();
                                   },
@@ -293,6 +320,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
         floatingActionButton: FloatingActionButton(
           backgroundColor: Colors.deepPurple,
+          elevation: 6,
           onPressed: () async {
             await Navigator.push(
               context,
@@ -304,37 +332,55 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
-        bottomNavigationBar: BottomAppBar(
-          shape: const CircularNotchedRectangle(),
-          notchMargin: 6.0,
-          color: Colors.white.withOpacity(0.95),
-          elevation: 6,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.receipt_long, color: Colors.blue),
-                tooltip: 'Generar Ticket Digital',
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const TicketScreen()),
-                  );
-                },
+        bottomNavigationBar: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipPath(
+              clipper: CurvedNotchClipper(),
+              child: Container(
+                color: Colors.white.withOpacity(0.95),
+                height: 70,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.receipt_long,
+                          color: Colors.deepPurple),
+                      tooltip: 'Generar Ticket Digital',
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const TicketScreen()),
+                        );
+                      },
+                    ),
+                    IconButton(
+                      icon:
+                          const Icon(Icons.history, color: Colors.green),
+                      tooltip: 'Ver historial de tickets',
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const TicketHistoryScreen()),
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
-              IconButton(
-                icon: const Icon(Icons.history, color: Colors.green),
-                tooltip: 'Ver historial de tickets',
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const TicketHistoryScreen()),
-                  );
-                },
+            ),
+
+            // 👇 Banner visible solo si hay conexión
+            if (_isOnline && _bannerAd != null)
+              Container(
+                color: Colors.white,
+                width: _bannerAd!.size.width.toDouble(),
+                height: _bannerAd!.size.height.toDouble(),
+                child: AdWidget(ad: _bannerAd!),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -363,4 +409,25 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+}
+
+/// 🎨 Curva moderna en la barra inferior
+class CurvedNotchClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    const double notchRadius = 40;
+    final Path path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width / 2 - notchRadius, 0)
+      ..quadraticBezierTo(size.width / 2, notchRadius * 1.6,
+          size.width / 2 + notchRadius, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
