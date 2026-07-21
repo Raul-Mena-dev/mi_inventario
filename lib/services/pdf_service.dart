@@ -1,10 +1,12 @@
 import 'dart:io';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:pdf/pdf.dart';
-import 'package:path_provider/path_provider.dart';
-import '../data/models/product.dart';
+
 import 'package:open_file/open_file.dart';
-import 'settings_service.dart'; // 👈 para leer los datos guardados
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:path_provider/path_provider.dart';
+
+import '../data/models/product.dart';
+import 'settings_service.dart';
 
 class PdfService {
   /// Genera un catálogo en PDF, mostrando datos del negocio y redes sociales en texto
@@ -14,22 +16,22 @@ class PdfService {
     final pdf = pw.Document();
 
     if (products.isEmpty) {
-      print("⚠️ No hay productos para exportar.");
       return;
     }
 
     // 🔹 Obtener datos del negocio
-    final businessName = await SettingsService.getBusinessName() ?? 'Mi Negocio';
+    final businessName =
+        await SettingsService.getBusinessName() ?? 'Mi Negocio';
     final logoPath = await SettingsService.getLogoPath();
-    final socialLinks = await SettingsService.getSocialLinks(); 
-    // socialLinks podría ser algo como: {'facebook': 'MiNegocioFB', 'instagram': '@minegocio', 'whatsapp': '3312345678'}
+    final socialLinks = (await SettingsService.getSocialLinks())
+      ..removeWhere((key, value) => value.trim().isEmpty);
 
     // 🔹 Agrupar productos por categoría y subcategoría
     final Map<String, Map<String?, List<Product>>> grouped = {};
 
     for (var p in products) {
       final category = p.category;
-      final subcategory = p.subcategory.isNotEmpty == true ? p.subcategory : null;
+      final subcategory = p.subcategory.isNotEmpty ? p.subcategory : null;
 
       grouped.putIfAbsent(category, () => {});
       grouped[category]!.putIfAbsent(subcategory, () => []);
@@ -132,6 +134,10 @@ class PdfService {
                                 style: pw.TextStyle(
                                     fontSize: 12, color: PdfColors.green800),
                               ),
+                              pw.Text(
+                                "Stock: ${product.stock}",
+                                style: pw.TextStyle(fontSize: 11),
+                              ),
                             ],
                           ),
                         ),
@@ -145,7 +151,7 @@ class PdfService {
             pw.SizedBox(height: 20),
 
             // 🔹 Pie con redes sociales
-            if (socialLinks != null && socialLinks.isNotEmpty) ...[
+            if (socialLinks.isNotEmpty) ...[
               pw.Divider(),
               pw.Center(
                 child: pw.Text(
@@ -181,10 +187,11 @@ class PdfService {
     final file = File('${directory.path}/catalogo_$timestamp.pdf');
 
     await file.writeAsBytes(await pdf.save());
-    print('✅ PDF generado en: ${file.path}');
-
-    // 🔹 Abrir el archivo
-    await OpenFile.open(file.path);
+    try {
+      await OpenFile.open(file.path);
+    } catch (_) {
+      // The PDF is saved even when the device has no app to open it.
+    }
   }
 
   static String _capitalize(String text) {

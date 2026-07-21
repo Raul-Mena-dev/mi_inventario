@@ -1,18 +1,23 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
+
 import '../../data/models/product.dart';
 import '../../data/repositories/product_repository.dart';
-import 'product_form.dart';
-import 'ticket_screen.dart';
 import '../../services/settings_service.dart';
 import 'export_options_sheet.dart';
-import 'ticket_history_screen.dart';
-import 'settings_screen.dart';
 import 'image_viewer_screen.dart';
+import 'inventory_movements_screen.dart';
+import 'product_form.dart';
+import 'settings_screen.dart';
+import 'ticket_history_screen.dart';
+import 'ticket_screen.dart';
 
 class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
@@ -20,7 +25,10 @@ class _HomeScreenState extends State<HomeScreen> {
   String businessName = "Inventario";
   String? logoPath;
   String? selectedCategory;
+  String searchQuery = "";
   List<String> categories = [];
+  bool showLowStockOnly = false;
+  static const int lowStockThreshold = 3;
 
   @override
   void initState() {
@@ -31,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadProducts() async {
     final data = await ProductRepository.getProducts();
+    if (!mounted) return;
     setState(() {
       products = data;
       categories = products.map((p) => p.category).toSet().toList()..sort();
@@ -43,6 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadSettings() async {
     final name = await SettingsService.getBusinessName();
     final logo = await SettingsService.getLogoPath();
+    if (!mounted) return;
     setState(() {
       businessName = name ?? "Inventario";
       logoPath = logo;
@@ -51,14 +61,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredProducts = selectedCategory == null
-        ? products
-        : products.where((p) => p.category == selectedCategory).toList();
+    final filteredProducts = products.where((p) {
+      final matchesCategory =
+          selectedCategory == null || p.category == selectedCategory;
+      final query = searchQuery.toLowerCase().trim();
+      final matchesSearch = query.isEmpty ||
+          p.name.toLowerCase().contains(query) ||
+          p.description.toLowerCase().contains(query) ||
+          p.subcategory.toLowerCase().contains(query);
+      final matchesLowStock = !showLowStockOnly || p.stock <= lowStockThreshold;
+      return matchesCategory && matchesSearch && matchesLowStock;
+    }).toList();
 
     final Map<String, List<Product>> productsByCategory = {};
     for (var p in filteredProducts) {
       productsByCategory.putIfAbsent(p.category, () => []).add(p);
     }
+    final lowStockCount =
+        products.where((p) => p.stock <= lowStockThreshold).length;
 
     return Container(
       decoration: const BoxDecoration(
@@ -71,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
-          backgroundColor: Colors.white.withOpacity(0.9),
+          backgroundColor: Colors.white.withValues(alpha: 0.9),
           elevation: 4,
           titleSpacing: 8,
           title: Row(
@@ -130,16 +150,26 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert, color: Colors.black87),
-              onSelected: (value) {
+              onSelected: (value) async {
                 if (value == 'ticket') {
-                  Navigator.push(
+                  await Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const TicketScreen()),
                   );
+                  _loadProducts();
                 } else if (value == 'historial') {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const TicketHistoryScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const TicketHistoryScreen(),
+                    ),
+                  );
+                } else if (value == 'movimientos') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const InventoryMovementsScreen(),
+                    ),
                   );
                 }
               },
@@ -164,23 +194,86 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
+                const PopupMenuItem(
+                  value: 'movimientos',
+                  child: Row(
+                    children: [
+                      Icon(Icons.swap_vert, color: Colors.deepPurple),
+                      SizedBox(width: 8),
+                      Text('Movimientos'),
+                    ],
+                  ),
+                ),
               ],
             ),
           ],
         ),
-
         body: Column(
           children: [
+            if (lowStockCount > 0)
+              MaterialBanner(
+                content: Text(
+                  "$lowStockCount producto(s) con stock bajo",
+                ),
+                leading: const Icon(Icons.warning_amber, color: Colors.orange),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        selectedCategory = null;
+                        searchQuery = "";
+                        showLowStockOnly = true;
+                      });
+                    },
+                    child: const Text("Ver"),
+                  ),
+                ],
+              ),
+            if (showLowStockOnly)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                child: Row(
+                  children: [
+                    const Icon(Icons.filter_alt, size: 18),
+                    const SizedBox(width: 8),
+                    const Expanded(child: Text("Mostrando stock bajo")),
+                    TextButton(
+                      onPressed: () {
+                        setState(() => showLowStockOnly = false);
+                      },
+                      child: const Text("Quitar"),
+                    ),
+                  ],
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+              child: TextField(
+                decoration: InputDecoration(
+                  hintText: "Buscar producto...",
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white.withValues(alpha: 0.9),
+                ),
+                onChanged: (value) => setState(() => searchQuery = value),
+              ),
+            ),
             // Filtro
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withValues(alpha: 0.8),
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: const [
                     BoxShadow(
-                        color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
+                      color: Colors.black12,
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    )
                   ],
                 ),
                 child: Padding(
@@ -199,7 +292,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         (c) => DropdownMenuItem(value: c, child: Text(c)),
                       ),
                     ],
-                    onChanged: (val) => setState(() => selectedCategory = val),
+                    onChanged: (val) {
+                      setState(() {
+                        selectedCategory = val;
+                        showLowStockOnly = false;
+                      });
+                    },
                   ),
                 ),
               ),
@@ -236,36 +334,43 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             children: items.map((product) {
                               return ListTile(
-                                leading: product.imagePath != null && File(product.imagePath!).existsSync()
-                                  ? GestureDetector(
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => ImageViewerScreen(imagePath: product.imagePath!),
-                                          ),
-                                        );
-                                      },
-                                      child: Hero(
-                                        tag: product.imagePath!,
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(8),
-                                          child: Image.file(
-                                            File(product.imagePath!),
-                                            width: 50,
-                                            height: 50,
-                                            fit: BoxFit.cover,
+                                leading: product.imagePath != null &&
+                                        File(product.imagePath!).existsSync()
+                                    ? GestureDetector(
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => ImageViewerScreen(
+                                                imagePath: product.imagePath!,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        child: Hero(
+                                          tag: product.imagePath!,
+                                          child: ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            child: Image.file(
+                                              File(product.imagePath!),
+                                              width: 50,
+                                              height: 50,
+                                              fit: BoxFit.cover,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    )
-                                  : const Icon(Icons.inventory, size: 40),
-
+                                      )
+                                    : const Icon(Icons.inventory, size: 40),
                                 title: Text(product.name,
                                     style: const TextStyle(
                                         fontWeight: FontWeight.bold)),
                                 subtitle: Text(
-                                    "Precio: \$${product.price.toStringAsFixed(2)}"),
+                                  "Precio: \$${product.price.toStringAsFixed(2)} · Stock: ${product.stock}",
+                                ),
+                                tileColor: product.stock <= lowStockThreshold
+                                    ? Colors.orange.withValues(alpha: 0.08)
+                                    : null,
                                 trailing: IconButton(
                                   icon: const Icon(Icons.edit,
                                       color: Colors.deepPurple),
@@ -290,7 +395,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-
         floatingActionButton: FloatingActionButton(
           backgroundColor: Colors.deepPurple,
           onPressed: () async {
@@ -303,11 +407,10 @@ class _HomeScreenState extends State<HomeScreen> {
           child: const Icon(Icons.add, color: Colors.white),
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-
         bottomNavigationBar: BottomAppBar(
           shape: const CircularNotchedRectangle(),
           notchMargin: 6.0,
-          color: Colors.white.withOpacity(0.95),
+          color: Colors.white.withValues(alpha: 0.95),
           elevation: 6,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -315,10 +418,23 @@ class _HomeScreenState extends State<HomeScreen> {
               IconButton(
                 icon: const Icon(Icons.receipt_long, color: Colors.blue),
                 tooltip: 'Generar Ticket Digital',
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const TicketScreen()),
+                  );
+                  _loadProducts();
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.swap_vert, color: Colors.deepPurple),
+                tooltip: 'Ver movimientos',
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const TicketScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const InventoryMovementsScreen(),
+                    ),
                   );
                 },
               ),
@@ -355,6 +471,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: const Text("Eliminar", style: TextStyle(color: Colors.red)),
             onPressed: () async {
               await ProductRepository.deleteProduct(id);
+              if (!ctx.mounted) return;
               Navigator.of(ctx).pop();
               _loadProducts();
             },

@@ -1,20 +1,21 @@
 import 'dart:io';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:pdf/pdf.dart';
-import 'package:path_provider/path_provider.dart';
+
 import 'package:open_file/open_file.dart';
-import '../data/models/product.dart';
-import '../data/models/ticket.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:path_provider/path_provider.dart';
+
 import '../data/database/ticket_repository.dart';
+import '../data/models/ticket.dart';
+import '../data/models/ticket_item.dart';
 import 'settings_service.dart';
 
 class TicketPDFService {
   static Future<void> generateTicket(
-    String businessName,
-    List<Product> products,
+    List<TicketItem> items,
   ) async {
     final pdf = pw.Document();
-    final total = products.fold<double>(0, (sum, p) => sum + (p.price ?? 0));
+    final total = items.fold<double>(0, (sum, item) => sum + item.total);
     final date = DateTime.now();
     final formattedDate =
         "${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}";
@@ -22,7 +23,8 @@ class TicketPDFService {
     // 🔹 Cargar ajustes del negocio
     final name = await SettingsService.getBusinessName() ?? 'Mi Negocio';
     final logoPath = await SettingsService.getLogoPath();
-    final links = await SettingsService.getSocialLinks(); // {'facebook': 'MiNegocio', 'whatsapp': '3312345678'}
+    final links = (await SettingsService.getSocialLinks())
+      ..removeWhere((key, value) => value.trim().isEmpty);
 
     // 🔹 Construir la página del ticket
     pdf.addPage(
@@ -55,7 +57,10 @@ class TicketPDFService {
             pw.SizedBox(height: 8),
             pw.Text(
               "Ticket de venta",
-              style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.normal),
+              style: pw.TextStyle(
+                fontSize: 14,
+                fontWeight: pw.FontWeight.normal,
+              ),
             ),
             pw.SizedBox(height: 6),
             pw.Text(
@@ -71,40 +76,21 @@ class TicketPDFService {
                 pw.TableRow(
                   decoration: const pw.BoxDecoration(color: PdfColors.grey300),
                   children: [
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(4),
-                      child: pw.Text(
-                        'Producto',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                      ),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(4),
-                      child: pw.Text(
-                        'Precio',
-                        textAlign: pw.TextAlign.right,
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                      ),
-                    ),
+                    _cell('Producto', bold: true),
+                    _cell('Cant.', bold: true, alignRight: true),
+                    _cell('Subtotal', bold: true, alignRight: true),
                   ],
                 ),
-                ...products.map(
-                  (p) => pw.TableRow(
+                ...items.map(
+                  (item) => pw.TableRow(
                     children: [
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(4),
-                        child: pw.Text(
-                          p.name ?? '',
-                          style: const pw.TextStyle(fontSize: 10),
-                        ),
+                      _cell(
+                        '${item.product.name}\n\$${item.product.price.toStringAsFixed(2)} c/u',
                       ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(4),
-                        child: pw.Text(
-                          "\$${p.price?.toStringAsFixed(2) ?? '0.00'}",
-                          textAlign: pw.TextAlign.right,
-                          style: const pw.TextStyle(fontSize: 10),
-                        ),
+                      _cell('${item.quantity}', alignRight: true),
+                      _cell(
+                        "\$${item.total.toStringAsFixed(2)}",
+                        alignRight: true,
                       ),
                     ],
                   ),
@@ -118,13 +104,16 @@ class TicketPDFService {
               alignment: pw.Alignment.centerRight,
               child: pw.Text(
                 "Total: \$${total.toStringAsFixed(2)}",
-                style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+                style: pw.TextStyle(
+                  fontSize: 14,
+                  fontWeight: pw.FontWeight.bold,
+                ),
               ),
             ),
             pw.SizedBox(height: 10),
 
             // --- REDES SOCIALES COMO TEXTO ---
-            if (links != null && links.isNotEmpty)
+            if (links.isNotEmpty)
               pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.center,
                 children: [
@@ -140,7 +129,6 @@ class TicketPDFService {
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.center,
                     children: links.entries
-                        .where((e) => e.value.isNotEmpty)
                         .map(
                           (e) => pw.Text(
                             "${_formatSocialName(e.key)}: ${e.value}",
@@ -182,7 +170,11 @@ class TicketPDFService {
     );
     await TicketRepository.insertTicket(ticket);
 
-    await OpenFile.open(file.path);
+    try {
+      await OpenFile.open(file.path);
+    } catch (_) {
+      // The ticket is already saved; opening depends on the device apps.
+    }
   }
 
   static String _formatSocialName(String key) {
@@ -200,5 +192,23 @@ class TicketPDFService {
       default:
         return key[0].toUpperCase() + key.substring(1);
     }
+  }
+
+  static pw.Widget _cell(
+    String value, {
+    bool bold = false,
+    bool alignRight = false,
+  }) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(4),
+      child: pw.Text(
+        value,
+        textAlign: alignRight ? pw.TextAlign.right : pw.TextAlign.left,
+        style: pw.TextStyle(
+          fontSize: 9,
+          fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+        ),
+      ),
+    );
   }
 }

@@ -1,6 +1,9 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
+import '../../services/image_storage_service.dart';
 import '../../services/settings_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -16,7 +19,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _instagramController = TextEditingController();
   final _tiktokController = TextEditingController();
   final _xController = TextEditingController();
-  final _whatsappController = TextEditingController(); // 👈 Nuevo controlador
+  final _whatsappController = TextEditingController();
 
   String? _logoPath;
 
@@ -35,17 +38,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _instagramController.text = links["instagram"] ?? '';
     _tiktokController.text = links["tiktok"] ?? '';
     _xController.text = links["x"] ?? '';
-    _whatsappController.text = links["whatsapp"] ?? ''; // 👈 Cargar WhatsApp
+    _whatsappController.text = links["whatsapp"] ?? '';
 
+    if (!mounted) return;
     setState(() {});
   }
 
   Future<void> _pickLogo() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
     if (picked != null) {
-      await SettingsService.saveLogoPath(picked.path);
-      setState(() => _logoPath = picked.path);
+      final logoPath =
+          await ImageStorageService.saveImageToAppStorage(picked.path);
+      if (logoPath != null) {
+        await SettingsService.saveLogoPath(logoPath);
+        setState(() => _logoPath = logoPath);
+      }
     }
   }
 
@@ -63,6 +74,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const SnackBar(content: Text('Configuración guardada')),
       );
     }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _facebookController.dispose();
+    _instagramController.dispose();
+    _tiktokController.dispose();
+    _xController.dispose();
+    _whatsappController.dispose();
+    super.dispose();
   }
 
   @override
@@ -85,7 +107,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // Logo
           Row(
             children: [
-              _logoPath != null
+              _logoPath != null && File(_logoPath!).existsSync()
                   ? CircleAvatar(
                       backgroundImage: FileImage(File(_logoPath!)),
                       radius: 40,
@@ -115,7 +137,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _socialField("Instagram", _instagramController),
           _socialField("TikTok", _tiktokController),
           _socialField("X (Twitter)", _xController),
-          _socialField("WhatsApp (número o texto)", _whatsappController), // 👈 Nuevo campo
+          _socialField("WhatsApp (número o texto)", _whatsappController),
 
           const SizedBox(height: 30),
           ElevatedButton.icon(

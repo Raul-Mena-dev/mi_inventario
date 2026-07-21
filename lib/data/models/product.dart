@@ -3,15 +3,17 @@ class Product {
   final String name;
   final String description;
   final double price;
+  final int stock;
   final String category;
   final String subcategory;
-  final String? imagePath; // NUEVO
+  final String? imagePath;
 
   Product({
     this.id,
     required this.name,
     required this.description,
     required this.price,
+    required this.stock,
     required this.category,
     required this.subcategory,
     this.imagePath,
@@ -23,6 +25,7 @@ class Product {
       'name': name,
       'description': description,
       'price': price,
+      'stock': stock,
       'category': category,
       'subcategory': subcategory,
       'imagePath': imagePath,
@@ -31,13 +34,36 @@ class Product {
 
   static Product fromMap(Map<String, dynamic> map) {
     return Product(
-      id: map['id'],
-      name: map['name'],
-      description: map['description'],
-      price: map['price'],
-      category: map['category'],
-      subcategory: map['subcategory'],
-      imagePath: map['imagePath'],
+      id: map['id'] as int?,
+      name: (map['name'] ?? '') as String,
+      description: (map['description'] ?? '') as String,
+      price: (map['price'] as num?)?.toDouble() ?? 0,
+      stock: (map['stock'] as int?) ?? 0,
+      category: (map['category'] ?? '') as String,
+      subcategory: (map['subcategory'] ?? '') as String,
+      imagePath: map['imagePath'] as String?,
+    );
+  }
+
+  Product copyWith({
+    int? id,
+    String? name,
+    String? description,
+    double? price,
+    int? stock,
+    String? category,
+    String? subcategory,
+    String? imagePath,
+  }) {
+    return Product(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      price: price ?? this.price,
+      stock: stock ?? this.stock,
+      category: category ?? this.category,
+      subcategory: subcategory ?? this.subcategory,
+      imagePath: imagePath ?? this.imagePath,
     );
   }
 }

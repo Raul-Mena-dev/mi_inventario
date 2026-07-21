@@ -14,12 +14,15 @@ class ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        leading: product.imagePath != null
-            ? Image.file(File(product.imagePath!),
-                width: 50, height: 50, fit: BoxFit.cover)
-            : Icon(Icons.inventory),
+        leading:
+            product.imagePath != null && File(product.imagePath!).existsSync()
+                ? Image.file(File(product.imagePath!),
+                    width: 50, height: 50, fit: BoxFit.cover)
+                : const Icon(Icons.inventory),
         title: Text(product.name),
-        subtitle: Text("\$${product.price.toStringAsFixed(2)}"),
+        subtitle: Text(
+          "\$${product.price.toStringAsFixed(2)} · Stock: ${product.stock}",
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -28,7 +31,7 @@ class ProductCard extends StatelessWidget {
               onPressed: onEdit,
             ),
             IconButton(
-              icon: Icon(Icons.delete, color: Colors.red),
+              icon: const Icon(Icons.delete, color: Colors.red),
               onPressed: onDelete,
             ),
           ],

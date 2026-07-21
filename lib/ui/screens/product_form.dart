@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+
 import '../../data/models/product.dart';
 import '../../data/repositories/product_repository.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+import '../../services/image_storage_service.dart';
 
 class ProductForm extends StatefulWidget {
   final Product? product;
@@ -18,6 +21,7 @@ class ProductFormState extends State<ProductForm> {
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
   late TextEditingController _priceController;
+  late TextEditingController _stockController;
   late TextEditingController _categoryController;
   late TextEditingController _subcategoryController;
 
@@ -33,13 +37,18 @@ class ProductFormState extends State<ProductForm> {
         TextEditingController(text: widget.product?.description ?? "");
     _priceController =
         TextEditingController(text: widget.product?.price.toString() ?? "");
+    _stockController =
+        TextEditingController(text: widget.product?.stock.toString() ?? "0");
     _categoryController =
         TextEditingController(text: widget.product?.category ?? "");
     _subcategoryController =
         TextEditingController(text: widget.product?.subcategory ?? "");
 
     if (widget.product?.imagePath != null) {
-      _image = File(widget.product!.imagePath!);
+      final image = File(widget.product!.imagePath!);
+      if (image.existsSync()) {
+        _image = image;
+      }
     }
 
     _loadCategories();
@@ -50,6 +59,7 @@ class ProductFormState extends State<ProductForm> {
 
   Future<void> _loadCategories() async {
     final categories = await ProductRepository.getCategories();
+    if (!mounted) return;
     setState(() {
       _categories = categories;
     });
@@ -57,6 +67,7 @@ class ProductFormState extends State<ProductForm> {
 
   Future<void> _loadSubcategories(String category) async {
     final subs = await ProductRepository.getSubcategories(category);
+    if (!mounted) return;
     setState(() {
       _subcategories = subs;
     });
@@ -74,8 +85,10 @@ class ProductFormState extends State<ProductForm> {
                 title: const Text("Tomar foto"),
                 onTap: () async {
                   Navigator.of(ctx).pop();
-                  final pickedFile =
-                      await ImagePicker().pickImage(source: ImageSource.camera);
+                  final pickedFile = await ImagePicker().pickImage(
+                    source: ImageSource.camera,
+                    imageQuality: 85,
+                  );
                   if (pickedFile != null) {
                     setState(() {
                       _image = File(pickedFile.path);
@@ -88,8 +101,10 @@ class ProductFormState extends State<ProductForm> {
                 title: const Text("Elegir de galería"),
                 onTap: () async {
                   Navigator.of(ctx).pop();
-                  final pickedFile = await ImagePicker()
-                      .pickImage(source: ImageSource.gallery);
+                  final pickedFile = await ImagePicker().pickImage(
+                    source: ImageSource.gallery,
+                    imageQuality: 85,
+                  );
                   if (pickedFile != null) {
                     setState(() {
                       _image = File(pickedFile.path);
@@ -107,14 +122,17 @@ class ProductFormState extends State<ProductForm> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final imagePath =
+        await ImageStorageService.saveImageToAppStorage(_image?.path);
     final product = Product(
       id: widget.product?.id,
-      name: _nameController.text.trim(),
+      name: _normalizeText(_nameController.text),
       description: _descriptionController.text.trim(),
-      price: double.tryParse(_priceController.text) ?? 0,
-      category: _categoryController.text.trim(),
-      subcategory: _subcategoryController.text.trim(),
-      imagePath: _image?.path,
+      price: double.parse(_priceController.text.trim()),
+      stock: int.parse(_stockController.text.trim()),
+      category: _normalizeText(_categoryController.text),
+      subcategory: _normalizeText(_subcategoryController.text),
+      imagePath: imagePath,
     );
 
     if (widget.product == null) {
@@ -124,6 +142,17 @@ class ProductFormState extends State<ProductForm> {
     }
 
     if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _priceController.dispose();
+    _stockController.dispose();
+    _categoryController.dispose();
+    _subcategoryController.dispose();
+    super.dispose();
   }
 
   @override
@@ -185,7 +214,12 @@ class ProductFormState extends State<ProductForm> {
                 _buildTextField(_priceController, "Precio",
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
-                    required: true),
+                    required: true,
+                    validator: _validatePrice),
+                _buildTextField(_stockController, "Existencia",
+                    keyboardType: TextInputType.number,
+                    required: true,
+                    validator: _validateStock),
 
                 const SizedBox(height: 10),
 
@@ -194,6 +228,7 @@ class ProductFormState extends State<ProductForm> {
                   label: "Categoría",
                   controller: _categoryController,
                   options: _categories,
+                  required: true,
                   onSelected: (selection) async {
                     _categoryController.text = selection;
                     _subcategoryController.clear();
@@ -208,6 +243,7 @@ class ProductFormState extends State<ProductForm> {
                   label: "Subcategoría",
                   controller: _subcategoryController,
                   options: _subcategories,
+                  required: true,
                   onSelected: (selection) {
                     _subcategoryController.text = selection;
                   },
@@ -240,6 +276,7 @@ class ProductFormState extends State<ProductForm> {
     bool required = false,
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
+    String? Function(String?)? validator,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -247,9 +284,11 @@ class ProductFormState extends State<ProductForm> {
         controller: controller,
         maxLines: maxLines,
         keyboardType: keyboardType,
-        validator: required
-            ? (val) => val == null || val.trim().isEmpty ? "Requerido" : null
-            : null,
+        validator: validator ??
+            (required
+                ? (val) =>
+                    val == null || val.trim().isEmpty ? "Requerido" : null
+                : null),
         decoration: InputDecoration(
           labelText: label,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -265,29 +304,29 @@ class ProductFormState extends State<ProductForm> {
     required TextEditingController controller,
     required List<String> options,
     required ValueChanged<String> onSelected,
+    bool required = false,
   }) {
     return Autocomplete<String>(
       optionsBuilder: (TextEditingValue textEditingValue) {
         if (textEditingValue.text.isEmpty) {
           return const Iterable<String>.empty();
         }
-        return options.where((o) => o
-            .toLowerCase()
-            .contains(textEditingValue.text.toLowerCase()));
+        return options.where((o) =>
+            o.toLowerCase().contains(textEditingValue.text.toLowerCase()));
       },
       onSelected: onSelected,
       fieldViewBuilder:
           (context, textEditingController, focusNode, onFieldSubmitted) {
-        if (textEditingController.text.isEmpty &&
-            controller.text.isNotEmpty) {
+        if (textEditingController.text.isEmpty && controller.text.isNotEmpty) {
           textEditingController.text = controller.text;
         }
-        textEditingController.addListener(() {
-          controller.text = textEditingController.text;
-        });
         return TextFormField(
           controller: textEditingController,
           focusNode: focusNode,
+          onChanged: (value) => controller.text = value,
+          validator: required
+              ? (val) => val == null || val.trim().isEmpty ? "Requerido" : null
+              : null,
           decoration: InputDecoration(
             labelText: label,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -297,5 +336,25 @@ class ProductFormState extends State<ProductForm> {
         );
       },
     );
+  }
+
+  String? _validatePrice(String? value) {
+    if (value == null || value.trim().isEmpty) return "Requerido";
+    final price = double.tryParse(value.trim());
+    if (price == null) return "Ingresa un precio válido";
+    if (price < 0) return "El precio no puede ser negativo";
+    return null;
+  }
+
+  String? _validateStock(String? value) {
+    if (value == null || value.trim().isEmpty) return "Requerido";
+    final stock = int.tryParse(value.trim());
+    if (stock == null) return "Ingresa una existencia válida";
+    if (stock < 0) return "La existencia no puede ser negativa";
+    return null;
+  }
+
+  String _normalizeText(String value) {
+    return value.trim().replaceAll(RegExp(r'\s+'), ' ');
   }
 }

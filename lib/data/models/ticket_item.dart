@@ -6,5 +6,5 @@ class TicketItem {
 
   TicketItem({required this.product, this.quantity = 1});
 
-  double get total => (product.price ?? 0) * quantity;
+  double get total => product.price * quantity;
 }

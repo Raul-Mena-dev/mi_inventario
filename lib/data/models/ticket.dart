@@ -4,7 +4,11 @@ class Ticket {
   final double total;
   final String pdfPath;
 
-  Ticket({this.id, required this.date, required this.total, required this.pdfPath});
+  Ticket(
+      {this.id,
+      required this.date,
+      required this.total,
+      required this.pdfPath});
 
   Map<String, dynamic> toMap() => {
         'id': id,

@@ -12,7 +12,7 @@ class SettingsService {
   // ======== SAVE METHODS ========
   static Future<void> saveBusinessName(String name) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_businessNameKey, name);
+    await prefs.setString(_businessNameKey, _clean(name));
   }
 
   static Future<void> saveLogoPath(String path) async {
@@ -28,11 +28,13 @@ class SettingsService {
     String? whatsapp,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    if (facebook != null) await prefs.setString(_facebookKey, facebook);
-    if (instagram != null) await prefs.setString(_instagramKey, instagram);
-    if (tiktok != null) await prefs.setString(_tiktokKey, tiktok);
-    if (x != null) await prefs.setString(_xKey, x);
-    if (whatsapp != null) await prefs.setString(_whatsappKey, whatsapp);
+    if (facebook != null) await prefs.setString(_facebookKey, _clean(facebook));
+    if (instagram != null) {
+      await prefs.setString(_instagramKey, _clean(instagram));
+    }
+    if (tiktok != null) await prefs.setString(_tiktokKey, _clean(tiktok));
+    if (x != null) await prefs.setString(_xKey, _clean(x));
+    if (whatsapp != null) await prefs.setString(_whatsappKey, _clean(whatsapp));
   }
 
   // ======== GET METHODS ========
@@ -55,5 +57,9 @@ class SettingsService {
       "x": prefs.getString(_xKey) ?? "",
       "whatsapp": prefs.getString(_whatsappKey) ?? "",
     };
+  }
+
+  static String _clean(String value) {
+    return value.trim().replaceAll(RegExp(r'\s+'), ' ');
   }
 }

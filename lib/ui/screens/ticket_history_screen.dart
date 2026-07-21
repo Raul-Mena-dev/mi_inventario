@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../data/models/ticket.dart';
 import '../../data/database/ticket_repository.dart';
 import 'package:open_file/open_file.dart';
+import 'package:share_plus/share_plus.dart';
 
 class TicketHistoryScreen extends StatefulWidget {
   const TicketHistoryScreen({super.key});
@@ -38,9 +39,20 @@ class _TicketHistoryScreenState extends State<TicketHistoryScreen> {
                   leading: const Icon(Icons.receipt_long),
                   title: Text("Ticket del ${t.date}"),
                   subtitle: Text("Total: \$${t.total.toStringAsFixed(2)}"),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.open_in_new),
-                    onPressed: () => OpenFile.open(t.pdfPath),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.share),
+                        tooltip: 'Compartir ticket',
+                        onPressed: () => Share.shareXFiles([XFile(t.pdfPath)]),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.open_in_new),
+                        tooltip: 'Abrir ticket',
+                        onPressed: () => OpenFile.open(t.pdfPath),
+                      ),
+                    ],
                   ),
                 );
               },
