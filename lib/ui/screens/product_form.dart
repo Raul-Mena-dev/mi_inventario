@@ -21,6 +21,7 @@ class ProductFormState extends State<ProductForm> {
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
   late TextEditingController _priceController;
+  late TextEditingController _costController;
   late TextEditingController _stockController;
   late TextEditingController _categoryController;
   late TextEditingController _subcategoryController;
@@ -37,6 +38,8 @@ class ProductFormState extends State<ProductForm> {
         TextEditingController(text: widget.product?.description ?? "");
     _priceController =
         TextEditingController(text: widget.product?.price.toString() ?? "");
+    _costController =
+        TextEditingController(text: widget.product?.cost.toString() ?? "0");
     _stockController =
         TextEditingController(text: widget.product?.stock.toString() ?? "0");
     _categoryController =
@@ -129,6 +132,7 @@ class ProductFormState extends State<ProductForm> {
       name: _normalizeText(_nameController.text),
       description: _descriptionController.text.trim(),
       price: double.parse(_priceController.text.trim()),
+      cost: double.parse(_costController.text.trim()),
       stock: int.parse(_stockController.text.trim()),
       category: _normalizeText(_categoryController.text),
       subcategory: _normalizeText(_subcategoryController.text),
@@ -149,6 +153,7 @@ class ProductFormState extends State<ProductForm> {
     _nameController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
+    _costController.dispose();
     _stockController.dispose();
     _categoryController.dispose();
     _subcategoryController.dispose();
@@ -158,10 +163,10 @@ class ProductFormState extends State<ProductForm> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.product != null;
+    final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(isEditing ? "Editar Producto" : "Nuevo Producto"),
       ),
@@ -185,7 +190,7 @@ class ProductFormState extends State<ProductForm> {
                       height: 160,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
-                        color: Colors.grey[100],
+                        color: colors.surfaceContainerHighest,
                         image: _image != null
                             ? DecorationImage(
                                 image: FileImage(_image!),
@@ -198,7 +203,6 @@ class ProductFormState extends State<ProductForm> {
                               child: Icon(
                                 Icons.add_a_photo,
                                 size: 40,
-                                color: Colors.grey,
                               ),
                             )
                           : null,
@@ -216,6 +220,11 @@ class ProductFormState extends State<ProductForm> {
                         const TextInputType.numberWithOptions(decimal: true),
                     required: true,
                     validator: _validatePrice),
+                _buildTextField(_costController, "Costo de compra",
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    required: true,
+                    validator: _validateCost),
                 _buildTextField(_stockController, "Existencia",
                     keyboardType: TextInputType.number,
                     required: true,
@@ -292,8 +301,6 @@ class ProductFormState extends State<ProductForm> {
         decoration: InputDecoration(
           labelText: label,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          filled: true,
-          fillColor: Colors.grey[50],
         ),
       ),
     );
@@ -330,8 +337,6 @@ class ProductFormState extends State<ProductForm> {
           decoration: InputDecoration(
             labelText: label,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            filled: true,
-            fillColor: Colors.grey[50],
           ),
         );
       },
@@ -343,6 +348,14 @@ class ProductFormState extends State<ProductForm> {
     final price = double.tryParse(value.trim());
     if (price == null) return "Ingresa un precio válido";
     if (price < 0) return "El precio no puede ser negativo";
+    return null;
+  }
+
+  String? _validateCost(String? value) {
+    if (value == null || value.trim().isEmpty) return "Requerido";
+    final cost = double.tryParse(value.trim());
+    if (cost == null) return "Ingresa un costo válido";
+    if (cost < 0) return "El costo no puede ser negativo";
     return null;
   }
 

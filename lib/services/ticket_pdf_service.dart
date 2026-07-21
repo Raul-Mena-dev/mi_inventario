@@ -6,23 +6,30 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 
 import '../data/database/ticket_repository.dart';
+import '../data/models/customer.dart';
 import '../data/models/ticket.dart';
 import '../data/models/ticket_item.dart';
 import 'settings_service.dart';
 
 class TicketPDFService {
-  static Future<void> generateTicket(
-    List<TicketItem> items,
-  ) async {
+  static Future<File> generateTicket(
+    List<TicketItem> items, {
+    Customer? customer,
+    String paymentStatus = 'paid',
+    required double paidAmount,
+  }) async {
     final pdf = pw.Document();
     final total = items.fold<double>(0, (sum, item) => sum + item.total);
+    final profit = TicketRepository.calculateProfit(items);
     final date = DateTime.now();
     final formattedDate =
         "${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}";
+    final pending = total - paidAmount;
 
     // 🔹 Cargar ajustes del negocio
     final name = await SettingsService.getBusinessName() ?? 'Mi Negocio';
     final logoPath = await SettingsService.getLogoPath();
+    final logoImage = _loadPdfImage(logoPath);
     final links = (await SettingsService.getSocialLinks())
       ..removeWhere((key, value) => value.trim().isEmpty);
 
@@ -35,15 +42,12 @@ class TicketPDFService {
           crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
             // --- LOGO + NOMBRE ---
-            if (logoPath != null && File(logoPath).existsSync())
+            if (logoImage != null)
               pw.Center(
                 child: pw.Container(
                   height: 60,
                   width: 60,
-                  child: pw.Image(
-                    pw.MemoryImage(File(logoPath).readAsBytesSync()),
-                    fit: pw.BoxFit.contain,
-                  ),
+                  child: pw.Image(logoImage, fit: pw.BoxFit.contain),
                 ),
               ),
             pw.Text(
@@ -67,6 +71,11 @@ class TicketPDFService {
               "Fecha: $formattedDate",
               style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
             ),
+            if (customer != null)
+              pw.Text(
+                "Cliente: ${customer.name}",
+                style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+              ),
             pw.Divider(thickness: 0.8),
 
             // --- TABLA DE PRODUCTOS ---
@@ -102,12 +111,26 @@ class TicketPDFService {
             // --- TOTAL ---
             pw.Align(
               alignment: pw.Alignment.centerRight,
-              child: pw.Text(
-                "Total: \$${total.toStringAsFixed(2)}",
-                style: pw.TextStyle(
-                  fontSize: 14,
-                  fontWeight: pw.FontWeight.bold,
-                ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  pw.Text(
+                    "Total: \$${total.toStringAsFixed(2)}",
+                    style: pw.TextStyle(
+                      fontSize: 14,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.Text(
+                    "Pago: ${TicketRepository.paymentLabel(paymentStatus)}",
+                    style: pw.TextStyle(fontSize: 10),
+                  ),
+                  if (paymentStatus != 'paid')
+                    pw.Text(
+                      "Saldo: \$${pending.toStringAsFixed(2)}",
+                      style: pw.TextStyle(fontSize: 10),
+                    ),
+                ],
               ),
             ),
             pw.SizedBox(height: 10),
@@ -164,16 +187,33 @@ class TicketPDFService {
 
     // 🔹 Guardar ticket en base de datos
     final ticket = Ticket(
-      date: formattedDate,
+      date: date.toIso8601String(),
       total: total,
       pdfPath: file.path,
+      customerId: customer?.id,
+      customerName: customer?.name ?? '',
+      paymentStatus: paymentStatus,
+      paidAmount: paidAmount,
+      profit: profit,
     );
-    await TicketRepository.insertTicket(ticket);
+    await TicketRepository.insertTicket(ticket, items: items);
 
     try {
       await OpenFile.open(file.path);
     } catch (_) {
       // The ticket is already saved; opening depends on the device apps.
+    }
+    return file;
+  }
+
+  static pw.MemoryImage? _loadPdfImage(String? path) {
+    if (path == null) return null;
+    try {
+      final file = File(path);
+      if (!file.existsSync()) return null;
+      return pw.MemoryImage(file.readAsBytesSync());
+    } catch (_) {
+      return null;
     }
   }
 

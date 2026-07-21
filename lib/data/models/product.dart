@@ -3,6 +3,7 @@ class Product {
   final String name;
   final String description;
   final double price;
+  final double cost;
   final int stock;
   final String category;
   final String subcategory;
@@ -13,6 +14,7 @@ class Product {
     required this.name,
     required this.description,
     required this.price,
+    this.cost = 0,
     required this.stock,
     required this.category,
     required this.subcategory,
@@ -25,6 +27,7 @@ class Product {
       'name': name,
       'description': description,
       'price': price,
+      'cost': cost,
       'stock': stock,
       'category': category,
       'subcategory': subcategory,
@@ -38,6 +41,7 @@ class Product {
       name: (map['name'] ?? '') as String,
       description: (map['description'] ?? '') as String,
       price: (map['price'] as num?)?.toDouble() ?? 0,
+      cost: (map['cost'] as num?)?.toDouble() ?? 0,
       stock: (map['stock'] as int?) ?? 0,
       category: (map['category'] ?? '') as String,
       subcategory: (map['subcategory'] ?? '') as String,
@@ -50,6 +54,7 @@ class Product {
     String? name,
     String? description,
     double? price,
+    double? cost,
     int? stock,
     String? category,
     String? subcategory,
@@ -60,6 +65,7 @@ class Product {
       name: name ?? this.name,
       description: description ?? this.description,
       price: price ?? this.price,
+      cost: cost ?? this.cost,
       stock: stock ?? this.stock,
       category: category ?? this.category,
       subcategory: subcategory ?? this.subcategory,

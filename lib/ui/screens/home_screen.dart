@@ -5,10 +5,14 @@ import 'package:flutter/material.dart';
 import '../../data/models/product.dart';
 import '../../data/repositories/product_repository.dart';
 import '../../services/settings_service.dart';
+import 'business_summary_screen.dart';
+import 'customers_screen.dart';
 import 'export_options_sheet.dart';
+import 'expenses_screen.dart';
 import 'image_viewer_screen.dart';
 import 'inventory_movements_screen.dart';
 import 'product_form.dart';
+import 'reminders_screen.dart';
 import 'settings_screen.dart';
 import 'ticket_history_screen.dart';
 import 'ticket_screen.dart';
@@ -61,6 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final filteredProducts = products.where((p) {
       final matchesCategory =
           selectedCategory == null || p.category == selectedCategory;
@@ -81,9 +86,9 @@ class _HomeScreenState extends State<HomeScreen> {
         products.where((p) => p.stock <= lowStockThreshold).length;
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFFF5F3FF), Color(0xFFFFFFFF)],
+          colors: [colors.primaryContainer, colors.surface],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
@@ -91,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
-          backgroundColor: Colors.white.withValues(alpha: 0.9),
+          backgroundColor: colors.surface.withValues(alpha: 0.92),
           elevation: 4,
           titleSpacing: 8,
           title: Row(
@@ -105,17 +110,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       )
                     : const CircleAvatar(
                         radius: 20,
-                        backgroundColor: Color(0xFFE0E0E0),
-                        child: Icon(Icons.store, color: Colors.blueAccent),
+                        child: Icon(Icons.store),
                       ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   businessName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
+                    color: colors.onSurface,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -124,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.settings, color: Colors.black87),
+              icon: const Icon(Icons.settings),
               tooltip: 'Configuración del negocio',
               onPressed: () async {
                 await Navigator.push(
@@ -135,13 +140,13 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
             IconButton(
-              icon: const Icon(Icons.picture_as_pdf, color: Colors.deepPurple),
+              icon: Icon(Icons.picture_as_pdf, color: colors.primary),
               tooltip: 'Exportar inventario',
               onPressed: () {
                 showModalBottomSheet(
                   context: context,
                   isScrollControlled: true,
-                  backgroundColor: Colors.white,
+                  backgroundColor: colors.surface,
                   builder: (context) => ExportOptionsSheet(
                     products: products,
                   ),
@@ -149,7 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
             PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert, color: Colors.black87),
+              icon: Icon(Icons.more_vert, color: colors.onSurface),
               onSelected: (value) async {
                 if (value == 'ticket') {
                   await Navigator.push(
@@ -171,9 +176,53 @@ class _HomeScreenState extends State<HomeScreen> {
                       builder: (_) => const InventoryMovementsScreen(),
                     ),
                   );
+                } else if (value == 'resumen') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const BusinessSummaryScreen(),
+                    ),
+                  );
+                } else if (value == 'clientes') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const CustomersScreen()),
+                  );
+                } else if (value == 'gastos') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ExpensesScreen()),
+                  );
+                } else if (value == 'recordatorios') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const RemindersScreen(),
+                    ),
+                  );
                 }
               },
               itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'resumen',
+                  child: Row(
+                    children: [
+                      Icon(Icons.dashboard, color: Colors.teal),
+                      SizedBox(width: 8),
+                      Text('Resumen del negocio'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'recordatorios',
+                  child: Row(
+                    children: [
+                      Icon(Icons.notifications_active, color: Colors.orange),
+                      SizedBox(width: 8),
+                      Text('Recordatorios'),
+                    ],
+                  ),
+                ),
                 const PopupMenuItem(
                   value: 'ticket',
                   child: Row(
@@ -181,6 +230,26 @@ class _HomeScreenState extends State<HomeScreen> {
                       Icon(Icons.receipt_long, color: Colors.blue),
                       SizedBox(width: 8),
                       Text('Ticket Digital'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'clientes',
+                  child: Row(
+                    children: [
+                      Icon(Icons.people, color: Colors.indigo),
+                      SizedBox(width: 8),
+                      Text('Clientes'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'gastos',
+                  child: Row(
+                    children: [
+                      Icon(Icons.payments, color: Colors.brown),
+                      SizedBox(width: 8),
+                      Text('Gastos'),
                     ],
                   ),
                 ),
@@ -256,7 +325,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.9),
+                  fillColor: colors.surface.withValues(alpha: 0.92),
                 ),
                 onChanged: (value) => setState(() => searchQuery = value),
               ),
@@ -266,13 +335,13 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.8),
+                  color: colors.surface.withValues(alpha: 0.88),
                   borderRadius: BorderRadius.circular(12),
-                  boxShadow: const [
+                  boxShadow: [
                     BoxShadow(
-                      color: Colors.black12,
+                      color: colors.shadow.withValues(alpha: 0.12),
                       blurRadius: 4,
-                      offset: Offset(0, 2),
+                      offset: const Offset(0, 2),
                     )
                   ],
                 ),
@@ -306,10 +375,12 @@ class _HomeScreenState extends State<HomeScreen> {
             // Lista
             Expanded(
               child: productsByCategory.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
                         "No hay productos aún",
-                        style: TextStyle(color: Colors.black54),
+                        style: TextStyle(
+                          color: colors.onSurface.withValues(alpha: 0.68),
+                        ),
                       ),
                     )
                   : ListView(
@@ -329,8 +400,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               category,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 18,
+                                fontSize: 16,
                               ),
+                              maxLines: 1,
                             ),
                             children: items.map((product) {
                               return ListTile(
@@ -362,11 +434,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ),
                                       )
                                     : const Icon(Icons.inventory, size: 40),
-                                title: Text(product.name,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold)),
+                                title: Text(
+                                  product.name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
+                                  maxLines: 1,
+                                ),
                                 subtitle: Text(
-                                  "Precio: \$${product.price.toStringAsFixed(2)} · Stock: ${product.stock}",
+                                  "Precio: \$${product.price.toStringAsFixed(2)} · Costo: \$${product.cost.toStringAsFixed(2)} · Stock: ${product.stock}",
+                                  maxLines: 2,
                                 ),
                                 tileColor: product.stock <= lowStockThreshold
                                     ? Colors.orange.withValues(alpha: 0.08)
@@ -396,7 +472,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         floatingActionButton: FloatingActionButton(
-          backgroundColor: Colors.deepPurple,
+          tooltip: 'Agregar producto',
           onPressed: () async {
             await Navigator.push(
               context,
@@ -404,17 +480,27 @@ class _HomeScreenState extends State<HomeScreen> {
             );
             _loadProducts();
           },
-          child: const Icon(Icons.add, color: Colors.white),
+          child: const Icon(Icons.add),
         ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         bottomNavigationBar: BottomAppBar(
-          shape: const CircularNotchedRectangle(),
-          notchMargin: 6.0,
-          color: Colors.white.withValues(alpha: 0.95),
+          color: colors.surface.withValues(alpha: 0.95),
           elevation: 6,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
+              IconButton(
+                icon: const Icon(Icons.dashboard, color: Colors.teal),
+                tooltip: 'Resumen del negocio',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const BusinessSummaryScreen(),
+                    ),
+                  );
+                },
+              ),
               IconButton(
                 icon: const Icon(Icons.receipt_long, color: Colors.blue),
                 tooltip: 'Generar Ticket Digital',
@@ -434,6 +520,19 @@ class _HomeScreenState extends State<HomeScreen> {
                     context,
                     MaterialPageRoute(
                       builder: (_) => const InventoryMovementsScreen(),
+                    ),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.notifications_active,
+                    color: Colors.orange),
+                tooltip: 'Recordatorios',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const RemindersScreen(),
                     ),
                   );
                 },

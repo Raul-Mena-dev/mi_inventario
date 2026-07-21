@@ -10,19 +10,21 @@ import 'settings_service.dart';
 
 class PdfService {
   /// Genera un catálogo en PDF, mostrando datos del negocio y redes sociales en texto
-  static Future<void> generateProductPdf({
+  static Future<File?> generateProductPdf({
     required List<Product> products,
+    bool showStock = true,
   }) async {
     final pdf = pw.Document();
 
     if (products.isEmpty) {
-      return;
+      return null;
     }
 
     // 🔹 Obtener datos del negocio
     final businessName =
         await SettingsService.getBusinessName() ?? 'Mi Negocio';
     final logoPath = await SettingsService.getLogoPath();
+    final logoImage = _loadPdfImage(logoPath);
     final socialLinks = (await SettingsService.getSocialLinks())
       ..removeWhere((key, value) => value.trim().isEmpty);
 
@@ -46,15 +48,12 @@ class PdfService {
         build: (context) {
           return [
             // 🔹 Encabezado del catálogo
-            if (logoPath != null && File(logoPath).existsSync())
+            if (logoImage != null)
               pw.Center(
                 child: pw.Container(
                   width: 100,
                   height: 100,
-                  child: pw.Image(
-                    pw.MemoryImage(File(logoPath).readAsBytesSync()),
-                    fit: pw.BoxFit.contain,
-                  ),
+                  child: pw.Image(logoImage, fit: pw.BoxFit.contain),
                 ),
               ),
             pw.Center(
@@ -70,7 +69,7 @@ class PdfService {
             pw.SizedBox(height: 10),
             pw.Center(
               child: pw.Text(
-                "Catálogo de productos",
+                showStock ? "Inventario de productos" : "Catálogo de productos",
                 style: pw.TextStyle(fontSize: 14, color: PdfColors.grey700),
               ),
             ),
@@ -106,17 +105,12 @@ class PdfService {
                     child: pw.Row(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        if (product.imagePath != null &&
-                            File(product.imagePath!).existsSync())
+                        if (_loadPdfImage(product.imagePath) case final image?)
                           pw.Container(
                             width: 60,
                             height: 60,
                             margin: const pw.EdgeInsets.only(right: 10),
-                            child: pw.Image(
-                              pw.MemoryImage(
-                                  File(product.imagePath!).readAsBytesSync()),
-                              fit: pw.BoxFit.cover,
-                            ),
+                            child: pw.Image(image, fit: pw.BoxFit.cover),
                           ),
                         pw.Expanded(
                           child: pw.Column(
@@ -134,10 +128,11 @@ class PdfService {
                                 style: pw.TextStyle(
                                     fontSize: 12, color: PdfColors.green800),
                               ),
-                              pw.Text(
-                                "Stock: ${product.stock}",
-                                style: pw.TextStyle(fontSize: 11),
-                              ),
+                              if (showStock)
+                                pw.Text(
+                                  "Stock: ${product.stock}",
+                                  style: pw.TextStyle(fontSize: 11),
+                                ),
                             ],
                           ),
                         ),
@@ -184,13 +179,26 @@ class PdfService {
     final directory = await getApplicationDocumentsDirectory();
     final timestamp =
         DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
-    final file = File('${directory.path}/catalogo_$timestamp.pdf');
+    final prefix = showStock ? 'inventario' : 'catalogo';
+    final file = File('${directory.path}/${prefix}_$timestamp.pdf');
 
     await file.writeAsBytes(await pdf.save());
     try {
       await OpenFile.open(file.path);
     } catch (_) {
       // The PDF is saved even when the device has no app to open it.
+    }
+    return file;
+  }
+
+  static pw.MemoryImage? _loadPdfImage(String? path) {
+    if (path == null) return null;
+    try {
+      final file = File(path);
+      if (!file.existsSync()) return null;
+      return pw.MemoryImage(file.readAsBytesSync());
+    } catch (_) {
+      return null;
     }
   }
 

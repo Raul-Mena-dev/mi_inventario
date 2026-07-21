@@ -44,4 +44,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Local JDK bundles copied by tooling should not be committed.
+**/*.jdk/
+
 AGENTS.md

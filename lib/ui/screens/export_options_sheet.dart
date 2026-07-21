@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../data/models/product.dart';
+import '../../services/ad_service.dart';
 import '../../services/pdf_service.dart';
 
 class ExportOptionsSheet extends StatefulWidget {
@@ -17,6 +19,9 @@ class ExportOptionsSheet extends StatefulWidget {
 class _ExportOptionsSheetState extends State<ExportOptionsSheet> {
   // Mapa: {categoria: {subcategoria: bool}}
   late Map<String, Map<String, bool>> selectedMap;
+  bool showStock = false;
+  bool shareAfterSave = true;
+  bool isExporting = false;
 
   @override
   void initState() {
@@ -45,8 +50,11 @@ class _ExportOptionsSheetState extends State<ExportOptionsSheet> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const Text("Selecciona qué exportar",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              "Selecciona qué exportar",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              maxLines: 1,
+            ),
             const Divider(),
             Expanded(
               child: ListView(
@@ -65,19 +73,24 @@ class _ExportOptionsSheetState extends State<ExportOptionsSheet> {
                           value:
                               someSelected && !allSelected ? null : allSelected,
                           tristate: someSelected && !allSelected,
-                          onChanged: (val) {
-                            setState(() {
-                              for (var sub in subMap.keys) {
-                                subMap[sub] = val ?? false;
-                              }
-                            });
-                          },
+                          onChanged: isExporting
+                              ? null
+                              : (val) {
+                                  setState(() {
+                                    for (var sub in subMap.keys) {
+                                      subMap[sub] = val ?? false;
+                                    }
+                                  });
+                                },
                         ),
-                        Text(
-                          category,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                        Expanded(
+                          child: Text(
+                            category,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                            maxLines: 1,
                           ),
                         ),
                       ],
@@ -87,12 +100,14 @@ class _ExportOptionsSheetState extends State<ExportOptionsSheet> {
                       final checked = entry.value;
                       return CheckboxListTile(
                         value: checked,
-                        onChanged: (val) {
-                          setState(() {
-                            subMap[sub] = val ?? false;
-                          });
-                        },
-                        title: Text(sub),
+                        onChanged: isExporting
+                            ? null
+                            : (val) {
+                                setState(() {
+                                  subMap[sub] = val ?? false;
+                                });
+                              },
+                        title: Text(sub, maxLines: 1),
                         dense: true,
                         controlAffinity: ListTileControlAffinity.leading,
                       );
@@ -102,10 +117,38 @@ class _ExportOptionsSheetState extends State<ExportOptionsSheet> {
               ),
             ),
             const SizedBox(height: 10),
+            SwitchListTile(
+              value: showStock,
+              onChanged: isExporting
+                  ? null
+                  : (value) => setState(() => showStock = value),
+              title: const Text("Mostrar stock"),
+              subtitle: const Text(
+                "Apágalo para catálogo de venta",
+                maxLines: 1,
+              ),
+            ),
+            SwitchListTile(
+              value: shareAfterSave,
+              onChanged: isExporting
+                  ? null
+                  : (value) => setState(() => shareAfterSave = value),
+              title: const Text("Compartir al terminar"),
+            ),
             ElevatedButton.icon(
-              icon: const Icon(Icons.picture_as_pdf),
-              label: const Text("Exportar PDF"),
-              onPressed: _exportSelected,
+              icon: isExporting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(shareAfterSave ? Icons.share : Icons.picture_as_pdf),
+              label: Text(isExporting
+                  ? "Generando"
+                  : showStock
+                      ? "Exportar"
+                      : "Catálogo"),
+              onPressed: isExporting ? null : _exportSelected,
             ),
           ],
         ),
@@ -139,10 +182,45 @@ class _ExportOptionsSheetState extends State<ExportOptionsSheet> {
       });
     }).toList();
 
-    Navigator.pop(context); // Cerrar modal
+    setState(() => isExporting = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final file = await PdfService.generateProductPdf(
+        products: filteredProducts,
+        showStock: showStock,
+      );
+      if (!mounted || file == null) return;
 
-    await PdfService.generateProductPdf(
-      products: filteredProducts,
-    );
+      if (shareAfterSave) {
+        final box = context.findRenderObject() as RenderBox?;
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text: showStock ? 'Inventario de productos' : 'Catálogo de productos',
+          sharePositionOrigin:
+              box == null ? null : box.localToGlobal(Offset.zero) & box.size,
+        );
+      }
+
+      if (!mounted) return;
+      await AdService.maybeShowInterstitial(
+        context,
+        title: 'Anuncio de prueba',
+        message: 'Aquí se mostraría un anuncio después de generar el catálogo.',
+      );
+      if (!mounted) return;
+      Navigator.pop(context);
+      messenger.showSnackBar(
+        const SnackBar(content: Text("PDF generado correctamente")),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text("No se pudo generar el PDF. Intenta de nuevo."),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => isExporting = false);
+    }
   }
 }

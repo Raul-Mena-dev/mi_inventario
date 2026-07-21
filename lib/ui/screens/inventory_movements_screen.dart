@@ -57,9 +57,10 @@ class _InventoryMovementsScreenState extends State<InventoryMovementsScreen> {
                             color: isEntry ? Colors.green : Colors.red,
                           ),
                         ),
-                        title: Text(movement.productName),
+                        title: Text(movement.productName, maxLines: 1),
                         subtitle: Text(
                           "${movement.reason} · Stock final: ${movement.stockAfter}",
+                          maxLines: 1,
                         ),
                         trailing: Column(
                           mainAxisAlignment: MainAxisAlignment.center,

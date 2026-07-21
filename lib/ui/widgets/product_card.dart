@@ -19,21 +19,19 @@ class ProductCard extends StatelessWidget {
                 ? Image.file(File(product.imagePath!),
                     width: 50, height: 50, fit: BoxFit.cover)
                 : const Icon(Icons.inventory),
-        title: Text(product.name),
+        title: Text(product.name, maxLines: 1),
         subtitle: Text(
           "\$${product.price.toStringAsFixed(2)} · Stock: ${product.stock}",
+          maxLines: 1,
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.edit, color: Colors.blue),
-              onPressed: onEdit,
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: onDelete,
-            ),
+        trailing: PopupMenuButton<String>(
+          onSelected: (value) {
+            if (value == 'edit') onEdit?.call();
+            if (value == 'delete') onDelete?.call();
+          },
+          itemBuilder: (context) => const [
+            PopupMenuItem(value: 'edit', child: Text('Editar')),
+            PopupMenuItem(value: 'delete', child: Text('Eliminar')),
           ],
         ),
       ),

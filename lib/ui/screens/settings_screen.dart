@@ -4,7 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../services/image_storage_service.dart';
+import '../../services/app_preferences.dart';
+import '../../services/app_themes.dart';
 import '../../services/settings_service.dart';
+import 'backup_screen.dart';
+import 'about_screen.dart';
+import 'tutorial_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -22,6 +27,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _whatsappController = TextEditingController();
 
   String? _logoPath;
+  String _languageCode = 'es';
+  String _themeKey = 'classic';
 
   @override
   void initState() {
@@ -32,6 +39,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _loadSettings() async {
     _nameController.text = await SettingsService.getBusinessName() ?? '';
     _logoPath = await SettingsService.getLogoPath();
+    _languageCode = await SettingsService.getLanguageCode();
+    _themeKey = await SettingsService.getThemeKey();
     final links = await SettingsService.getSocialLinks();
 
     _facebookController.text = links["facebook"] ?? '';
@@ -105,21 +114,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 20),
 
           // Logo
-          Row(
+          Wrap(
+            spacing: 16,
+            runSpacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               _logoPath != null && File(_logoPath!).existsSync()
                   ? CircleAvatar(
                       backgroundImage: FileImage(File(_logoPath!)),
-                      radius: 40,
+                      radius: 34,
                     )
                   : const CircleAvatar(
-                      radius: 40,
-                      child: Icon(Icons.store, size: 40),
+                      radius: 34,
+                      child: Icon(Icons.store, size: 34),
                     ),
-              const SizedBox(width: 20),
               ElevatedButton.icon(
                 onPressed: _pickLogo,
-                icon: const Icon(Icons.image),
+                icon: const Icon(Icons.image, size: 18),
                 label: const Text("Cambiar logo"),
               ),
             ],
@@ -140,6 +151,86 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _socialField("WhatsApp (número o texto)", _whatsappController),
 
           const SizedBox(height: 30),
+          const Text(
+            "Preferencias",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            initialValue: _languageCode,
+            decoration: const InputDecoration(
+              labelText: 'Idioma',
+              border: OutlineInputBorder(),
+            ),
+            items: const [
+              DropdownMenuItem(value: 'es', child: Text('Español')),
+              DropdownMenuItem(value: 'en', child: Text('English')),
+            ],
+            onChanged: (value) async {
+              if (value == null) return;
+              await AppPreferences.instance.setLanguage(value);
+              setState(() => _languageCode = value);
+            },
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: _themeKey,
+            decoration: const InputDecoration(
+              labelText: 'Tema',
+              border: OutlineInputBorder(),
+            ),
+            items: AppThemes.options
+                .map(
+                  (option) => DropdownMenuItem(
+                    value: option.key,
+                    child: Text(option.label),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) async {
+              if (value == null) return;
+              await AppPreferences.instance.setTheme(value);
+              setState(() => _themeKey = value);
+            },
+          ),
+
+          const SizedBox(height: 30),
+          OutlinedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const BackupScreen()),
+              );
+            },
+            icon: const Icon(Icons.backup),
+            label: const Text("Respaldos"),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      const TutorialScreen(launchedFromSettings: true),
+                ),
+              );
+            },
+            icon: const Icon(Icons.help_outline),
+            label: const Text("Ver tutorial"),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AboutScreen()),
+              );
+            },
+            icon: const Icon(Icons.info_outline),
+            label: const Text("Acerca de y legales"),
+          ),
+          const SizedBox(height: 12),
           ElevatedButton.icon(
             onPressed: _saveSettings,
             icon: const Icon(Icons.save),
